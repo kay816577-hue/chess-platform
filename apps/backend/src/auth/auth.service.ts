@@ -1,7 +1,8 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, ConflictException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { nanoid } from 'nanoid';
+import * as bcrypt from 'bcryptjs';
 
 const ADJECTIVES = [
   'Swift', 'Daring', 'Silent', 'Clever', 'Brave', 'Sly', 'Bold', 'Wise',
@@ -19,6 +20,8 @@ function randomUsername(): string {
   return `${a}${b}${n}`;
 }
 
+const USERNAME_RE = /^[a-zA-Z0-9_-]{3,24}$/;
+
 export interface JwtPayload {
   sub: string;
   username: string;
@@ -32,7 +35,6 @@ export class AuthService {
   constructor(private readonly prisma: PrismaService, private readonly jwt: JwtService) {}
 
   async createGuest() {
-    // Retry if collision
     for (let i = 0; i < 5; i++) {
       const username = randomUsername();
       const exists = await this.prisma.user.findUnique({ where: { username } });
@@ -48,6 +50,37 @@ export class AuthService {
       return { token, user: this.safeUser(user) };
     }
     throw new Error('Could not allocate guest username');
+  }
+
+  async signup(username: string, password: string) {
+    if (!USERNAME_RE.test(username)) {
+      throw new BadRequestException('Username must be 3-24 chars, alphanumeric/_/-');
+    }
+    if (typeof password !== 'string' || password.length < 8 || password.length > 128) {
+      throw new BadRequestException('Password must be 8-128 characters');
+    }
+    const existing = await this.prisma.user.findUnique({ where: { username } });
+    if (existing) throw new ConflictException('Username taken');
+    const passwordHash = await bcrypt.hash(password, 10);
+    const user = await this.prisma.user.create({
+      data: {
+        id: `u_${nanoid(12)}`,
+        username,
+        passwordHash,
+        isGuest: false,
+      },
+    });
+    const token = this.sign(user.id, user.username, false);
+    return { token, user: this.safeUser(user) };
+  }
+
+  async login(username: string, password: string) {
+    const user = await this.prisma.user.findUnique({ where: { username } });
+    if (!user || !user.passwordHash) throw new UnauthorizedException('Invalid credentials');
+    const ok = await bcrypt.compare(password, user.passwordHash);
+    if (!ok) throw new UnauthorizedException('Invalid credentials');
+    const token = this.sign(user.id, user.username, false);
+    return { token, user: this.safeUser(user) };
   }
 
   sign(userId: string, username: string, guest: boolean): string {

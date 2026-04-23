@@ -24,6 +24,12 @@ export const api = {
   async guest(): Promise<AuthResponse> {
     return request('/auth/guest', { method: 'POST' });
   },
+  async signup(username: string, password: string): Promise<AuthResponse> {
+    return request('/auth/signup', { method: 'POST', body: JSON.stringify({ username, password }) });
+  },
+  async login(username: string, password: string): Promise<AuthResponse> {
+    return request('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) });
+  },
   async me(token: string): Promise<PlayerInfo & { isGuest: boolean }> {
     return request('/auth/me', { auth: token });
   },

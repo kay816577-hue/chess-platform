@@ -3,13 +3,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Chess } from 'chess.js';
+import type { Square } from 'chess.js';
 import { Board } from '@/components/Board';
 import { Clock } from '@/components/Clock';
 import { EvalBar } from '@/components/EvalBar';
 import { useSession } from '@/lib/store';
 import { getSocket } from '@/lib/socket';
 import { api } from '@/lib/api';
+import { initSound, isSoundEnabled, setSoundEnabled, playSound } from '@/lib/sound';
 import type { GameState, ServerEvent } from '@chess/shared';
+
+type Highlight = Record<string, React.CSSProperties>;
+
+const HIGHLIGHT_LAST = 'rgba(155, 199, 0, 0.35)';
+const HIGHLIGHT_CHECK = 'rgba(255, 70, 70, 0.55)';
 
 export default function GamePage() {
   const params = useParams<{ id: string }>();
@@ -18,16 +25,19 @@ export default function GamePage() {
   const [state, setState] = useState<GameState | null>(null);
   const [evalScore, setEvalScore] = useState<number | null>(null);
   const [showEval, setShowEval] = useState(false);
+  const [soundOn, setSoundOn] = useState(true);
   const [chat, setChat] = useState<Array<{ from: string; text: string; at: string }>>([]);
   const [chatInput, setChatInput] = useState('');
   const [drawOfferedBy, setDrawOfferedBy] = useState<'white' | 'black' | null>(null);
+  const [flipped, setFlipped] = useState(false);
   const chessRef = useRef(new Chess());
+  const lastMoveCountRef = useRef(0);
   const [displayFen, setDisplayFen] = useState<string>('start');
   const [whiteClock, setWhiteClock] = useState(0);
   const [blackClock, setBlackClock] = useState(0);
   const tickRef = useRef<number | null>(null);
 
-  useEffect(() => { hydrate(); }, [hydrate]);
+  useEffect(() => { hydrate(); initSound(); setSoundOn(isSoundEnabled()); }, [hydrate]);
 
   useEffect(() => {
     if (!token || !gameId) return;
@@ -36,15 +46,28 @@ export default function GamePage() {
     const onServer = (evt: ServerEvent) => {
       if (evt.type === 'welcome') return;
       if (evt.type === 'game_state' || evt.type === 'match_found' || evt.type === 'game_over') {
-        const g = evt.type === 'match_found' ? evt.game : evt.game;
+        const g = evt.game;
         if (g.id !== gameId) return;
         setState(g);
-        chessRef.current = new Chess();
-        if (g.pgn) chessRef.current.loadPgn(g.pgn, { strict: false });
-        setDisplayFen(chessRef.current.fen());
+        const next = new Chess();
+        if (g.pgn) next.loadPgn(g.pgn, { strict: false });
+        const prevCount = lastMoveCountRef.current;
+        const newCount = next.history().length;
+        chessRef.current = next;
+        setDisplayFen(next.fen());
         setWhiteClock(g.clocks.white);
         setBlackClock(g.clocks.black);
         setDrawOfferedBy(null);
+        if (newCount > prevCount) {
+          const last = next.history({ verbose: true }).slice(-1)[0];
+          if (evt.type === 'game_over') playSound('end');
+          else if (next.isCheck()) playSound('check');
+          else if (last?.captured) playSound('capture');
+          else playSound('move');
+        } else if (evt.type === 'game_over') {
+          playSound('end');
+        }
+        lastMoveCountRef.current = newCount;
       } else if (evt.type === 'chat') {
         setChat((prev) => [...prev.slice(-49), { from: evt.from, text: evt.text, at: evt.at }]);
       } else if (evt.type === 'draw_offered') {
@@ -55,9 +78,7 @@ export default function GamePage() {
       }
     };
 
-    const onConnect = () => {
-      sock.emit('join', { gameId });
-    };
+    const onConnect = () => { sock.emit('join', { gameId }); };
 
     sock.on('connect', onConnect);
     sock.on('server', onServer);
@@ -96,45 +117,63 @@ export default function GamePage() {
     return null;
   }, [state, user]);
 
-  const boardOrientation = myColor ?? 'white';
+  const naturalOrientation: 'white' | 'black' = myColor ?? 'white';
+  const boardOrientation: 'white' | 'black' = flipped
+    ? (naturalOrientation === 'white' ? 'black' : 'white')
+    : naturalOrientation;
 
-  const canMove = useCallback((from: string, to: string): boolean => {
-    if (!state || !myColor || state.status !== 'in_progress') return false;
+  const onDrop = useCallback((from: string, to: string): boolean => {
+    if (!state || !token || !myColor || state.status !== 'in_progress') return false;
     if (state.turn !== myColor) return false;
-    const piece = chessRef.current.get(from as `${'a'|'b'|'c'|'d'|'e'|'f'|'g'|'h'}${1|2|3|4|5|6|7|8}`);
+    const piece = chessRef.current.get(from as Square);
     if (!piece) return false;
     const pieceColor = piece.color === 'w' ? 'white' : 'black';
     if (pieceColor !== myColor) return false;
-    void to;
-    return true;
-  }, [state, myColor]);
 
-  const onDrop = useCallback((from: string, to: string): boolean => {
-    if (!state || !token) return false;
-    if (!canMove(from, to)) return false;
-    const piece = chessRef.current.get(from as `${'a'|'b'|'c'|'d'|'e'|'f'|'g'|'h'}${1|2|3|4|5|6|7|8}`);
-    const isPromotion = piece?.type === 'p' && (to.endsWith('1') || to.endsWith('8'));
-    const move = { from, to, promotion: isPromotion ? 'q' : undefined } as const;
-    // Optimistic board update
+    const isPromotion = piece.type === 'p' && (to.endsWith('1') || to.endsWith('8'));
+    const move = { from, to, promotion: isPromotion ? ('q' as const) : undefined };
     const copy = new Chess(chessRef.current.fen());
     const applied = copy.move({ from, to, promotion: isPromotion ? 'q' : undefined });
     if (!applied) return false;
+    // Optimistic: show locally, sound on own move
+    if (applied.captured) playSound('capture');
+    else playSound('move');
     chessRef.current = copy;
     setDisplayFen(copy.fen());
     const sock = getSocket(token);
     sock.emit('move', { gameId, move });
     return true;
-  }, [gameId, canMove, state, token]);
+  }, [gameId, state, token, myColor]);
 
-  const resign = () => { if (token) getSocket(token).emit('resign', { gameId }); };
-  const offerDraw = () => { if (token) getSocket(token).emit('offer_draw', { gameId }); };
-  const acceptDraw = () => { if (token) getSocket(token).emit('accept_draw', { gameId }); };
-  const declineDraw = () => { if (token) { getSocket(token).emit('decline_draw', { gameId }); setDrawOfferedBy(null); } };
+  const resign = useCallback(() => { if (token) getSocket(token).emit('resign', { gameId }); }, [token, gameId]);
+  const offerDraw = useCallback(() => { if (token) getSocket(token).emit('offer_draw', { gameId }); }, [token, gameId]);
+  const acceptDraw = useCallback(() => { if (token) getSocket(token).emit('accept_draw', { gameId }); }, [token, gameId]);
+  const declineDraw = useCallback(() => {
+    if (!token) return;
+    getSocket(token).emit('decline_draw', { gameId });
+    setDrawOfferedBy(null);
+  }, [token, gameId]);
   const sendChat = () => {
     if (!chatInput.trim() || !token) return;
     getSocket(token).emit('chat', { gameId, text: chatInput.trim() });
     setChatInput('');
   };
+
+  // Keyboard shortcuts: F flip, R resign, D draw, M mute
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && ['INPUT', 'TEXTAREA'].includes(target.tagName)) return;
+      if (e.key === 'f' || e.key === 'F') setFlipped((v) => !v);
+      else if (e.key === 'r' || e.key === 'R') resign();
+      else if (e.key === 'd' || e.key === 'D') offerDraw();
+      else if (e.key === 'm' || e.key === 'M') {
+        setSoundOn((prev) => { const next = !prev; setSoundEnabled(next); return next; });
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [resign, offerDraw]);
 
   // Evaluation polling
   useEffect(() => {
@@ -144,12 +183,38 @@ export default function GamePage() {
       try {
         const res = await api.bestmove(chessRef.current.fen(), 10);
         if (!cancelled) setEvalScore(res.score);
-      } catch {
-        /* ignore */
-      }
+      } catch { /* ignore */ }
     };
     poll();
+    return () => { cancelled = true; };
   }, [showEval, displayFen, state]);
+
+  const highlights: Highlight = useMemo(() => {
+    const sq: Highlight = {};
+    const history = chessRef.current.history({ verbose: true });
+    const last = history[history.length - 1];
+    if (last) {
+      sq[last.from] = { background: HIGHLIGHT_LAST };
+      sq[last.to] = { background: HIGHLIGHT_LAST };
+    }
+    if (chessRef.current.isCheck()) {
+      const turn = chessRef.current.turn();
+      const board = chessRef.current.board();
+      for (let r = 0; r < 8; r++) {
+        for (let f = 0; f < 8; f++) {
+          const p = board[r][f];
+          if (p && p.type === 'k' && p.color === turn) {
+            const file = 'abcdefgh'[f];
+            const rank = String(8 - r);
+            sq[`${file}${rank}`] = { background: HIGHLIGHT_CHECK };
+          }
+        }
+      }
+    }
+    return sq;
+    // chessRef.current reflects the latest board; recompute when fen changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displayFen]);
 
   if (!state) return <div className="text-neutral-400">Loading game…</div>;
 
@@ -176,16 +241,24 @@ export default function GamePage() {
           <Board
             position={displayFen}
             boardOrientation={boardOrientation}
-            onPieceDrop={(from: string, to: string) => onDrop(from, to)}
+            onPieceDrop={(from, to) => onDrop(from, to)}
             arePiecesDraggable={!gameOver && !!myColor}
             customBoardStyle={{ borderRadius: 8, boxShadow: '0 0 0 1px rgba(255,255,255,0.06)' }}
-            customDarkSquareStyle={{ backgroundColor: '#b58863' }}
-            customLightSquareStyle={{ backgroundColor: '#f0d9b5' }}
+            customDarkSquareStyle={{ backgroundColor: '#779952' }}
+            customLightSquareStyle={{ backgroundColor: '#edeed1' }}
+            customSquareStyles={highlights}
           />
         </div>
         <div className="flex items-center justify-between">
           <div className="text-sm text-neutral-300">{bottomPlayer.username} <span className="text-neutral-500">({bottomPlayer.rating})</span></div>
           <Clock ms={bottomClock} active={bottomActive} label={boardOrientation} />
+        </div>
+        <div className="flex flex-wrap gap-2 text-xs text-neutral-400">
+          <button className="btn-outline text-xs" onClick={() => setFlipped((v) => !v)} title="Flip board (F)">⇅ Flip</button>
+          <button className="btn-outline text-xs" onClick={() => {
+            const next = !soundOn; setSoundEnabled(next); setSoundOn(next);
+          }} title="Toggle sound (M)">{soundOn ? '🔊 Sound' : '🔇 Muted'}</button>
+          <span className="self-center">Shortcuts: F flip · R resign · D draw · M mute</span>
         </div>
       </div>
       <aside className="space-y-3">
@@ -198,10 +271,15 @@ export default function GamePage() {
               <div className="text-sm text-neutral-400">{state.endReason?.replace(/_/g, ' ')}</div>
               {state.players.white.ratingDelta != null && (
                 <div className="text-sm">
-                  White {state.players.white.ratingDelta >= 0 ? '+' : ''}{state.players.white.ratingDelta} · Black {state.players.black.ratingDelta! >= 0 ? '+' : ''}{state.players.black.ratingDelta}
+                  White {state.players.white.ratingDelta >= 0 ? '+' : ''}{state.players.white.ratingDelta} · Black {state.players.black.ratingDelta != null && state.players.black.ratingDelta >= 0 ? '+' : ''}{state.players.black.ratingDelta}
                 </div>
               )}
-              <a href={`/analysis?pgn=${encodeURIComponent(state.pgn)}`} className="btn-outline text-sm">Analyze game</a>
+              <div className="flex gap-2">
+                <a href={`/analysis?pgn=${encodeURIComponent(state.pgn)}`} className="btn-outline text-sm">Analyze game</a>
+                <button className="btn-outline text-sm" onClick={() => {
+                  navigator.clipboard?.writeText(state.pgn).catch(() => undefined);
+                }}>Copy PGN</button>
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-2">
@@ -232,6 +310,7 @@ export default function GamePage() {
                 <div>{state.moves[i * 2 + 1] ?? ''}</div>
               </div>
             ))}
+            {state.moves.length === 0 && <div className="text-neutral-500 col-span-3">No moves yet.</div>}
           </div>
         </div>
         <div className="card">

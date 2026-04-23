@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Chess } from 'chess.js';
+import type { Square } from 'chess.js';
 import { Board } from '@/components/Board';
 import { EvalBar } from '@/components/EvalBar';
 import { api } from '@/lib/api';
@@ -86,7 +87,16 @@ function AnalysisPageInner() {
       </div>
       <div className="space-y-3">
         <div className="aspect-square">
-          <Board position={displayFen} arePiecesDraggable={false} boardOrientation="white" customDarkSquareStyle={{ backgroundColor: '#b58863' }} customLightSquareStyle={{ backgroundColor: '#f0d9b5' }} />
+          <Board
+            position={displayFen}
+            arePiecesDraggable={false}
+            boardOrientation="white"
+            customDarkSquareStyle={{ backgroundColor: '#779952' }}
+            customLightSquareStyle={{ backgroundColor: '#edeed1' }}
+            customArrows={selected?.bestMove && selected.bestMove.length >= 4
+              ? [[selected.bestMove.slice(0, 2) as Square, selected.bestMove.slice(2, 4) as Square, '#22c55e']]
+              : []}
+          />
         </div>
         {analysis && (
           <div className="flex items-center gap-2">
@@ -113,11 +123,11 @@ function AnalysisPageInner() {
           {error && <div className="text-sm text-red-400">{error}</div>}
           <div className="text-xs text-neutral-500">{history.length} half-moves · Result {chess.header().Result ?? '*'}</div>
         </div>
-        {analysis && (
+        {analysis && selected && (
           <div className="card space-y-2 text-sm">
-            <div className="text-white font-medium">Move {selected?.ply}: {selected?.san}</div>
+            <div className="text-white font-medium">Move {selected.ply}: {selected.san}</div>
             <div className="text-neutral-400">
-              Eval: {(selected!.scoreAfter / 100).toFixed(2)}
+              Eval: {(selected.scoreAfter / 100).toFixed(2)}
               {selected?.bestMove && <> · Engine best: <span className="font-mono text-neutral-200">{selected.bestMove}</span></>}
               {selected?.classification && <> · <span className={
                 selected.classification === 'blunder' ? 'text-red-400' :

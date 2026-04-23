@@ -136,8 +136,10 @@ export class GamesService {
     const g = await this.prisma.game.findUnique({ where: { id: gameId } });
     if (!g) throw new NotFoundException('Game not found');
     if (g.status !== 'in_progress') throw new Error('Game not in progress');
-    const side: Color = g.whiteId === userId ? 'white' : g.blackId === userId ? 'black' : null as unknown as Color;
-    if (!side) throw new Error('Not a player in this game');
+    let side: Color;
+    if (g.whiteId === userId) side = 'white';
+    else if (g.blackId === userId) side = 'black';
+    else throw new Error('Not a player in this game');
     const rt = await this.loadRuntime(gameId);
     const turn: Color = rt.chess.turn() === 'w' ? 'white' : 'black';
     if (turn !== side) throw new Error('Not your turn');
@@ -291,7 +293,7 @@ export class GamesService {
     return this.toState(gameId);
   }
 
-  async toState(gameId: string, lastSan?: string): Promise<GameState> {
+  async toState(gameId: string, _lastSan?: string): Promise<GameState> {
     const g = await this.prisma.game.findUnique({
       where: { id: gameId },
       include: { white: true, black: true },
@@ -300,7 +302,6 @@ export class GamesService {
     const rt = this.runtime.get(gameId);
     const chess = rt?.chess ?? (() => { const c = new Chess(); if (g.pgn) c.loadPgn(g.pgn, { strict: false }); return c; })();
     const turnColor: Color = chess.turn() === 'w' ? 'white' : 'black';
-    void lastSan;
     return {
       id: g.id,
       fen: chess.fen(),

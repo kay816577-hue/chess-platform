@@ -50,7 +50,6 @@ export class EngineController {
 
     const replay = new Chess();
     const evaluated: EvaluatedMove[] = [];
-    let prevScore = 0;
 
     for (let i = 0; i < history.length; i++) {
       const fenBefore = replay.fen();
@@ -78,9 +77,7 @@ export class EngineController {
         bestLine: res.pv?.slice(0, 5),
         classification: classify(drop),
       });
-      prevScore = whiteScoreAfter;
     }
-    void prevScore;
     return { moves: evaluated, result: game.header().Result ?? '*' };
   }
 }

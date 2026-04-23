@@ -31,7 +31,8 @@ export function Nav() {
         <div className="ml-auto text-sm text-neutral-400 flex items-center gap-3">
           {user ? (
             <>
-              <span>{user.username} <span className="text-neutral-500">({user.rating})</span></span>
+              <span>{user.username} <span className="text-neutral-500">({user.rating})</span>{user.isGuest && <span className="ml-1 rounded bg-neutral-800 text-neutral-300 px-1.5 py-0.5 text-[10px] align-middle">guest</span>}</span>
+              {user.isGuest && <Link href="/auth" className="btn-outline text-xs">Sign in</Link>}
               <button className="btn-outline text-xs" onClick={() => { clear(); location.reload(); }}>Sign out</button>
             </>
           ) : (

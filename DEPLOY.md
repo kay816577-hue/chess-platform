@@ -24,7 +24,7 @@ Or automated via API (used by Devin sessions):
 curl -sX POST https://api.render.com/v1/blueprints \
   -H "Authorization: Bearer $RENDER_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"repo":"https://github.com/kayanerkama-alt/chess-platform","branch":"main"}'
+  -d '{"repo":"https://github.com/kay816577-hue/chess-platform","branch":"main"}'
 ```
 
 ## Frontend (Vercel)

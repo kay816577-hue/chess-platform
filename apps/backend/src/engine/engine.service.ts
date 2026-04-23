@@ -103,19 +103,19 @@ export class EngineService implements OnModuleDestroy {
       const handleLine = (line: string) => {
         raw.push(line);
         if (line.startsWith('info')) {
-          const m = /depth (\d+).*score (cp|mate) (-?\d+).*\spv\s+(.+)$/.exec(line);
-          if (m) {
-            const d = Number(m[1]);
-            const kind = m[2];
-            const val = Number(m[3]);
-            const pv = m[4].split(/\s+/).filter(Boolean);
-            if (kind === 'cp') {
-              lastInfo = { score: val, depth: d, pv };
-            } else {
-              // Convert mate score to a very large centipawn number sign-preserving.
-              const cp = val > 0 ? 100000 - val * 10 : -100000 - val * 10;
-              lastInfo = { score: cp, mate: val, depth: d, pv };
-            }
+          const depthMatch = /depth (\d+)/.exec(line);
+          const scoreMatch = /score (cp|mate) (-?\d+)/.exec(line);
+          const pvMatch = /\spv\s+(.+?)(?:\s+(?:bmc|tbhits|hashfull)\b.*)?$/.exec(line);
+          if (!depthMatch || !scoreMatch) return;
+          const d = Number(depthMatch[1]);
+          const kind = scoreMatch[1];
+          const val = Number(scoreMatch[2]);
+          const pv = pvMatch ? pvMatch[1].split(/\s+/).filter(Boolean) : lastInfo.pv;
+          if (kind === 'cp') {
+            lastInfo = { score: val, depth: d, pv };
+          } else {
+            const cp = val > 0 ? 100000 - val * 10 : -100000 - val * 10;
+            lastInfo = { score: cp, mate: val, depth: d, pv };
           }
         } else if (line.startsWith('bestmove')) {
           const parts = line.split(/\s+/);
