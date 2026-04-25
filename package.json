@@ -1,0 +1,20 @@
+{
+  "name": "chess-platform",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Open-source chess platform (Lichess-style) with real-time multiplayer, Stockfish AI, matchmaking, Elo, and analysis.",
+  "packageManager": "pnpm@9.15.1",
+  "scripts": {
+    "dev:backend": "pnpm --filter @chess/backend dev",
+    "dev:frontend": "pnpm --filter @chess/frontend dev",
+    "build": "pnpm -r build",
+    "build:backend": "pnpm --filter @chess/backend build",
+    "build:frontend": "pnpm --filter @chess/frontend build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,53 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String?
+  isGuest      Boolean  @default(true)
+  rating       Int      @default(1200)
+  gamesPlayed  Int      @default(0)
+  wins         Int      @default(0)
+  losses       Int      @default(0)
+  draws        Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  whiteGames Game[] @relation("WhitePlayer")
+  blackGames Game[] @relation("BlackPlayer")
+}
+
+model Game {
+  id            String   @id @default(cuid())
+  whiteId       String
+  blackId       String
+  white         User     @relation("WhitePlayer", fields: [whiteId], references: [id])
+  black         User     @relation("BlackPlayer", fields: [blackId], references: [id])
+  pgn           String   @default("")
+  fen           String   @default("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+  status        String   @default("in_progress") // in_progress | white_win | black_win | draw | aborted
+  endReason     String?
+  initialTimeMs Int      @default(180000)
+  incrementMs   Int      @default(2000)
+  whiteMs       Int      @default(180000)
+  blackMs       Int      @default(180000)
+  vsAi          Boolean  @default(false)
+  aiLevel       Int?
+  whiteRatingBefore Int  @default(1200)
+  blackRatingBefore Int  @default(1200)
+  whiteRatingAfter  Int?
+  blackRatingAfter  Int?
+  createdAt     DateTime @default(now())
+  lastMoveAt    DateTime @default(now())
+  finishedAt    DateTime?
+
+  @@index([whiteId])
+  @@index([blackId])
+  @@index([createdAt])
+}
