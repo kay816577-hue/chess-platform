@@ -91,8 +91,6 @@ function AnalysisPageInner() {
             position={displayFen}
             arePiecesDraggable={false}
             boardOrientation="white"
-            customDarkSquareStyle={{ backgroundColor: '#779952' }}
-            customLightSquareStyle={{ backgroundColor: '#edeed1' }}
             customArrows={selected?.bestMove && selected.bestMove.length >= 4
               ? [[selected.bestMove.slice(0, 2) as Square, selected.bestMove.slice(2, 4) as Square, '#22c55e']]
               : []}

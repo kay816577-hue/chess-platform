@@ -30,8 +30,18 @@ export const api = {
   async login(username: string, password: string): Promise<AuthResponse> {
     return request('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) });
   },
-  async me(token: string): Promise<PlayerInfo & { isGuest: boolean }> {
+  async me(token: string): Promise<PlayerInfo & { isGuest: boolean; puzzleRating?: number; puzzlesSolved?: number }> {
     return request('/auth/me', { auth: token });
+  },
+  async randomPuzzle(): Promise<{ id: string; fen: string; firstMove: string; solution: string[]; rating: number; themes: string[] }> {
+    return request('/puzzles/random');
+  },
+  async recordAttempt(token: string | null, puzzleId: string, success: boolean): Promise<{ rating: number; delta?: number }> {
+    return request('/puzzles/attempt', {
+      method: 'POST',
+      body: JSON.stringify({ puzzleId, success }),
+      auth: token ?? undefined,
+    });
   },
   async leaderboard(): Promise<Array<PlayerInfo & { gamesPlayed: number; wins: number; losses: number; draws: number }>> {
     return request('/users/leaderboard');

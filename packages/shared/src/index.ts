@@ -55,6 +55,7 @@ export interface GameState {
   aiLevel?: number;
   createdAt: string;
   lastMoveAt?: string;
+  opening?: { eco: string; name: string };
 }
 
 export interface MovePayload {

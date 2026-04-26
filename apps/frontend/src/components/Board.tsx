@@ -1,7 +1,8 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import type { ComponentProps } from 'react';
+import { useEffect, useState, type ComponentProps } from 'react';
+import { getBoardTheme } from '@/lib/theme';
 
 // react-chessboard ships with window-only references; load it client-side only.
 const Chessboard = dynamic(
@@ -12,5 +13,17 @@ const Chessboard = dynamic(
 export type BoardProps = ComponentProps<typeof Chessboard>;
 
 export function Board(props: BoardProps) {
-  return <Chessboard {...props} />;
+  const [theme, setTheme] = useState(() => getBoardTheme());
+  useEffect(() => {
+    const onChange = () => setTheme(getBoardTheme());
+    window.addEventListener('chess:theme', onChange);
+    return () => window.removeEventListener('chess:theme', onChange);
+  }, []);
+  return (
+    <Chessboard
+      customDarkSquareStyle={{ backgroundColor: theme.dark }}
+      customLightSquareStyle={{ backgroundColor: theme.light }}
+      {...props}
+    />
+  );
 }

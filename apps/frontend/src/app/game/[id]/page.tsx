@@ -244,8 +244,6 @@ export default function GamePage() {
             onPieceDrop={(from, to) => onDrop(from, to)}
             arePiecesDraggable={!gameOver && !!myColor}
             customBoardStyle={{ borderRadius: 8, boxShadow: '0 0 0 1px rgba(255,255,255,0.06)' }}
-            customDarkSquareStyle={{ backgroundColor: '#779952' }}
-            customLightSquareStyle={{ backgroundColor: '#edeed1' }}
             customSquareStyles={highlights}
           />
         </div>

@@ -9,6 +9,7 @@ import { GamesModule } from './games/games.module';
 import { EngineModule } from './engine/engine.module';
 import { MatchmakingModule } from './matchmaking/matchmaking.module';
 import { GatewayModule } from './gateway/gateway.module';
+import { PuzzlesModule } from './puzzles/puzzles.module';
 import { HealthController } from './common/health.controller';
 
 @Module({
@@ -23,6 +24,7 @@ import { HealthController } from './common/health.controller';
     MatchmakingModule,
     GamesModule,
     GatewayModule,
+    PuzzlesModule,
   ],
   controllers: [HealthController],
 })

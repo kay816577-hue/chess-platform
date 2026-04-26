@@ -9,10 +9,17 @@ async function bootstrap() {
     cors: false,
   });
 
-  const allowedOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:3000')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const corsEnv = (process.env.CORS_ORIGIN ?? '').trim();
+  const allowedOrigins = corsEnv
+    ? corsEnv.split(',').map((s) => s.trim()).filter(Boolean)
+    : (process.env.NODE_ENV === 'production' ? ['*'] : ['http://localhost:3000']);
+
+  if (!corsEnv && process.env.NODE_ENV === 'production') {
+    Logger.warn(
+      'CORS_ORIGIN is not set — allowing all origins. Set CORS_ORIGIN to lock this down.',
+      'Bootstrap',
+    );
+  }
 
   app.enableCors({
     origin: (origin, cb) => {

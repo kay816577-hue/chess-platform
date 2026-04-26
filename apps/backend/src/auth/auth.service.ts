@@ -97,7 +97,21 @@ export class AuthService {
     }
   }
 
-  safeUser(u: { id: string; username: string; rating: number; isGuest: boolean }) {
-    return { id: u.id, username: u.username, rating: u.rating, isGuest: u.isGuest };
+  safeUser(u: {
+    id: string;
+    username: string;
+    rating: number;
+    isGuest: boolean;
+    puzzleRating?: number;
+    puzzlesSolved?: number;
+  }) {
+    return {
+      id: u.id,
+      username: u.username,
+      rating: u.rating,
+      isGuest: u.isGuest,
+      puzzleRating: u.puzzleRating ?? 1200,
+      puzzlesSolved: u.puzzlesSolved ?? 0,
+    };
   }
 }

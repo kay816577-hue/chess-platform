@@ -6,7 +6,7 @@ deploy to free tiers on Render + Vercel.
 
 ![AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue) &nbsp;
 ![Node 20+](https://img.shields.io/badge/node-20%2B-green) &nbsp;
-![pnpm 9](https://img.shields.io/badge/pnpm-9.15-orange)
+![yarn 1](https://img.shields.io/badge/yarn-1.22-blue)
 
 ## Features
 
@@ -80,23 +80,23 @@ docker compose down -v
 
 ## Local development (without Docker)
 
-Requirements: Node.js 20+, pnpm 9+, PostgreSQL 14+, Redis 7+, and Stockfish
+Requirements: Node.js 20+, yarn 1.22+, PostgreSQL 14+, Redis 7+, and Stockfish
 (`apt install stockfish` on Debian/Ubuntu, `brew install stockfish` on macOS).
 
 ```bash
-pnpm install
+yarn install
 cp apps/backend/.env.example apps/backend/.env
 cp apps/frontend/.env.example apps/frontend/.env.local
 
 # Create schema (uses DATABASE_URL from apps/backend/.env)
-pnpm --filter @chess/backend exec prisma generate
-pnpm --filter @chess/backend exec prisma db push
+yarn workspace @chess/backend exec -- prisma generate
+yarn workspace @chess/backend exec -- prisma db push
 
 # Terminal 1 — backend at http://localhost:4000
-pnpm dev:backend
+yarn dev:backend
 
 # Terminal 2 — frontend at http://localhost:3000
-pnpm dev:frontend
+yarn dev:frontend
 ```
 
 If you don't want a full Postgres install, the easiest path is
@@ -106,19 +106,19 @@ If you don't want a full Postgres install, the easiest path is
 ## Testing
 
 ```bash
-pnpm typecheck    # TS across all workspaces
-pnpm lint         # ESLint + next lint
-pnpm test         # Jest (backend), passes with no-tests in frontend
+yarn typecheck    # TS across all workspaces
+yarn lint         # ESLint + next lint
+yarn test         # Jest (backend), passes with no-tests in frontend
 
 # Full production build
-pnpm build
+yarn build
 ```
 
 Specific scopes:
 
 ```bash
-pnpm --filter @chess/backend test
-pnpm --filter @chess/frontend build
+yarn workspace @chess/backend test
+yarn workspace @chess/frontend build
 ```
 
 CI (`.github/workflows/ci.yml`) runs typecheck + lint + tests + prod build on every

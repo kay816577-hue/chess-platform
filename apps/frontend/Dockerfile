@@ -1,16 +1,14 @@
 ARG NODE_VERSION=20
 
 FROM node:${NODE_VERSION}-bookworm-slim AS base
-ENV PNPM_HOME=/usr/local/pnpm
-ENV PATH=$PNPM_HOME:$PATH
-RUN corepack enable && corepack prepare pnpm@9.15.1 --activate
+RUN npm install -g yarn@1.22.22 --force
 WORKDIR /app
 
 FROM base AS deps
-COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* ./
+COPY package.json yarn.lock* ./
 COPY apps/frontend/package.json apps/frontend/package.json
 COPY packages/shared/package.json packages/shared/package.json
-RUN pnpm install --no-frozen-lockfile
+RUN yarn install --network-timeout 300000
 
 FROM deps AS build
 ARG NEXT_PUBLIC_API_URL=http://localhost:4000
@@ -19,7 +17,7 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY . .
-RUN pnpm --filter @chess/frontend build
+RUN yarn workspace @chess/frontend build
 
 FROM base AS runtime
 ENV NODE_ENV=production
@@ -34,8 +32,7 @@ COPY --from=build /app/packages ./packages
 COPY --from=build /app/apps/frontend/.next ./apps/frontend/.next
 COPY --from=build /app/apps/frontend/public ./apps/frontend/public
 COPY --from=build /app/apps/frontend/package.json ./apps/frontend/package.json
-COPY --from=build /app/apps/frontend/node_modules ./apps/frontend/node_modules
-COPY --from=build /app/package.json /app/pnpm-workspace.yaml ./
+COPY --from=build /app/package.json ./
 EXPOSE 3000
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["pnpm", "--filter", "@chess/frontend", "start"]
+CMD ["yarn", "workspace", "@chess/frontend", "start"]

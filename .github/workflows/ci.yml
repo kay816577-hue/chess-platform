@@ -10,27 +10,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9.15.1
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
-      - run: pnpm install --no-frozen-lockfile
+          cache: yarn
+      - run: npm install -g yarn@1.22.22 --force
+      - run: yarn install --frozen-lockfile
       - name: Prisma generate
         working-directory: apps/backend
         run: npx prisma generate
-      - name: Backend typecheck
-        run: pnpm --filter @chess/backend typecheck
-      - name: Frontend typecheck
-        run: pnpm --filter @chess/frontend typecheck
-      - name: Backend build
-        run: pnpm --filter @chess/backend build
-      - name: Frontend build
+      - name: Typecheck
+        run: yarn typecheck
+      - name: Lint
+        run: yarn lint
+      - name: Build
         env:
           NEXT_PUBLIC_API_URL: http://localhost:4000
           NEXT_PUBLIC_WS_URL: http://localhost:4000
-        run: pnpm --filter @chess/frontend build
-      - name: Unit tests
-        run: pnpm --filter @chess/backend test
+        run: yarn build
+      - name: Test
+        run: yarn test

@@ -25,8 +25,10 @@ export function Nav() {
         <nav className="flex gap-4 text-sm text-neutral-300">
           <Link href="/play">Play</Link>
           <Link href="/play/ai">vs AI</Link>
+          <Link href="/puzzles">Puzzles</Link>
           <Link href="/analysis">Analysis</Link>
           <Link href="/leaderboard">Leaderboard</Link>
+          <Link href="/settings">Settings</Link>
         </nav>
         <div className="ml-auto text-sm text-neutral-400 flex items-center gap-3">
           {user ? (

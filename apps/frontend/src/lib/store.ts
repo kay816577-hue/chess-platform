@@ -3,10 +3,16 @@
 import { create } from 'zustand';
 import type { PlayerInfo } from '@chess/shared';
 
+export type SessionUser = PlayerInfo & {
+  isGuest: boolean;
+  puzzleRating?: number;
+  puzzlesSolved?: number;
+};
+
 interface SessionState {
   token: string | null;
-  user: (PlayerInfo & { isGuest: boolean }) | null;
-  setSession: (token: string, user: PlayerInfo & { isGuest: boolean }) => void;
+  user: SessionUser | null;
+  setSession: (token: string, user: SessionUser) => void;
   clear: () => void;
   hydrate: () => void;
 }

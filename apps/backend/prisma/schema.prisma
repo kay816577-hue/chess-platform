@@ -17,10 +17,38 @@ model User {
   wins         Int      @default(0)
   losses       Int      @default(0)
   draws        Int      @default(0)
+  puzzleRating Int      @default(1200)
+  puzzlesSolved Int     @default(0)
   createdAt    DateTime @default(now())
 
   whiteGames Game[] @relation("WhitePlayer")
   blackGames Game[] @relation("BlackPlayer")
+}
+
+model Puzzle {
+  id        String   @id
+  fen       String
+  // Solution as space-separated UCI moves (e.g. "e2e4 e7e5 g1f3 ...").
+  solution  String
+  rating    Int      @default(1500)
+  themes    String   @default("")
+  popularity Int     @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([rating])
+  @@index([themes])
+}
+
+model PuzzleAttempt {
+  id        String   @id @default(cuid())
+  userId    String
+  puzzleId  String
+  success   Boolean
+  ratingBefore Int
+  ratingAfter  Int
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
 
 model Game {
